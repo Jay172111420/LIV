@@ -11,6 +11,20 @@ Browser (ES modules)  --fetch /api/*-->  routers  ->  services  ->  SQLAlchemy m
         +------ static files (/)           schemas      business rules, ownership checks
 ```
 
+## Workout engine (Phase 1)
+
+```
+routers -> services/plan_service ----> services/engine_adapter ----> engine/  (pure Python)
+        -> services/workout_session_service                           WorkoutGenerator
+                                                                      SplitGenerator   ExerciseSelector
+                                                                      EquipmentFilter  ExerciseSubstitutionService
+```
+
+`app/engine` imports nothing from SQLAlchemy, FastAPI or the UI. It works on plain `ExerciseInfo` objects, so
+it is deterministic and testable without a database. `engine_adapter` is the single bridge from database rows to
+engine objects. The frontend never contains generation logic: it sends inputs to `/workouts/generate` and renders
+the result.
+
 ## Decisions
 
 **Kept the planned stack.** FastAPI, SQLite and vanilla HTML/CSS/JS were already chosen in the README, so
@@ -57,6 +71,9 @@ finished onboarding. The server is the real authority, since every API call re-c
 
 ## Extending
 
+- New split: build `DayTemplate`s and call `SplitGenerator.register(SplitSpec(...))`. No generator changes.
+- New exercise: add an entry to `seed_data/exercise_library.py` (a test checks every entry's metadata).
+- New goal prescription: add a row to `GOAL_RULES` in `engine/prescription.py` and `STYLE_BONUS` in `engine/exercise_selector.py`.
 - New goal, equipment item or muscle group: add a row to `seed.py` lists (or insert in the DB). No code change.
 - New body metric type: add to `BodyMetricType` and `VALUE_RANGES`.
 - New feature area: add `models/x.py`, `schemas/x.py`, `services/x_service.py`, `routers/x.py`, register the

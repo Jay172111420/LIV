@@ -46,17 +46,47 @@ Everything except `register`, `login`, `logout` and `health` requires the sessio
 ### Exercises
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/exercises` | Query: `q`, `muscle_group_id`, `equipment_id`, `limit` (1-100), `offset`. Built-in plus your own |
-| POST | `/exercises` | Creates a private custom exercise. 201 |
+| GET | `/exercises` | Query: `q`, `muscle_group_id`, `equipment_id`, `available_only` (only exercises doable with your equipment and location), `limit` (1-100), `offset`. Built-in plus your own |
+| POST | `/exercises` | Creates a private custom exercise. Optional: `min_experience_level`, `is_compound`, `is_timed`, `rep_min`, `rep_max`, `recommended_sets`. 201 |
 | GET | `/exercises/{id}` | |
+| GET | `/exercises/{id}/substitutes` | Ranked replacements for your equipment, location and experience. Query: `limit` (1-20) |
 
-### Workouts
+### Workouts (plans and custom workouts)
+A *plan* has *days*; a day has *plan exercises* (an exercise plus sets, rep range and rest). A custom workout is a
+plan of `kind: "custom"` with exactly one day. All edit endpoints return the updated day.
+
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET, POST | `/workouts` | Workout plans |
-| GET | `/workouts/{id}` | |
-| GET, POST | `/workout-sessions` | POST accepts nested `exercises[].sets[]`. `set_number` and `position` are assigned by order |
+| GET | `/workouts` | Query: `kind` (`generated` or `custom`). Summaries incl. `workout_count`, `exercise_count`, `start_day_id`, `warnings` |
+| POST | `/workouts` | Phase 0: empty plan shell. 201 |
+| POST | `/workouts/generate` | Builds and saves a plan. Every field optional and defaults to your profile: `goal_id`, `experience_level`, `days_per_week`, `duration_minutes`, `training_location`, `equipment_ids`, `split_preference` (`auto`, `full_body`, `upper_lower`, `push_pull_legs`, `push_pull`, `bro_split`), `name`. 400 `profile_incomplete` if something is missing. 201 |
+| POST | `/workouts/custom` | `{name, exercises:[{exercise_id, sets?, rep_min?, rep_max?, rest_seconds?, notes?}]}`. Missing values come from the exercise's recommendations. 201 |
+| GET | `/workouts/{id}` | Plan with `days[]` (7 for generated plans, rest days included) |
+| PATCH | `/workouts/{id}` | `name`, `is_active`. Renaming a custom workout renames its day |
+| DELETE | `/workouts/{id}` | 204. Logged sessions are kept |
+| PATCH | `/workouts/{id}/days/{day_id}` | Rename a day |
+| POST | `/workouts/{id}/days/{day_id}/exercises` | Add an exercise. 400 `duplicate_exercise_in_day`, `too_many_exercises` (max 20), `rest_day`. 201 |
+| PATCH | `/workouts/{id}/days/{day_id}/exercises/{pe_id}` | `sets` (1-10), `rep_min`, `rep_max`, `rest_seconds` (0-600), `notes` |
+| DELETE | `/workouts/{id}/days/{day_id}/exercises/{pe_id}` | Remove; positions are renumbered |
+| PUT | `/workouts/{id}/days/{day_id}/order` | `{plan_exercise_ids: [...]}` must list every exercise exactly once |
+| GET | `/workouts/{id}/days/{day_id}/exercises/{pe_id}/substitutes` | Valid replacements with `score` and `reasons` |
+| POST | `/workouts/{id}/days/{day_id}/exercises/{pe_id}/replace` | `{exercise_id}`. Keeps position, sets, reps, rest, notes. 400 `invalid_substitute` |
+
+### Workout sessions (doing and logging a workout)
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET | `/workout-sessions` | Query: `status` (`in_progress`, `completed`, ...), `limit`, `offset`. Newest first (history) |
+| POST | `/workout-sessions` | Phase 0 bulk create (nested `exercises[].sets[]`) |
+| POST | `/workout-sessions/start` | `{plan_day_id, performed_on?}`. Copies the day into a live session, pre-filling weight/reps from last time. 409 `workout_in_progress` (with `details.session_id`) if one is already running. 201 |
+| GET | `/workout-sessions/active` | The session in progress, or `null` |
 | GET | `/workout-sessions/{id}` | |
+| PATCH | `/workout-sessions/{id}/sets/{set_id}` | Partial update: `weight_kg` (0-1000), `reps` (0-1000), `rpe` (1-10, step 0.5), `rir` (0-10), `notes`, `is_completed`. Completing needs reps >= 1 (400 `set_incomplete`) |
+| POST | `/workout-sessions/{id}/exercises/{we_id}/sets` | Add a set (copies the last one). Max 20. 201 |
+| DELETE | `/workout-sessions/{id}/exercises/{we_id}/sets/{set_id}` | Remove a set (an exercise keeps at least one) |
+| POST | `/workout-sessions/{id}/complete` | `{duration_minutes?, notes?}`. Needs one completed set (400 `no_completed_sets`). Skipped sets are dropped. Duration defaults to elapsed time; a typed duration longer than elapsed time is rejected (400 `invalid_duration`) |
+| DELETE | `/workout-sessions/{id}` | Discard a workout in progress. 204. Finished workouts return 409 `workout_not_active` |
+
+Finished workouts are read-only. All ids are scoped to the signed-in user; other users' ids return 404.
 
 ### Body metrics
 | Method | Path | Notes |
@@ -75,5 +105,4 @@ Everything except `register`, `login`, `logout` and `health` requires the sessio
 
 ## Not yet implemented
 
-Updating or deleting workout plans and sessions, editing or deleting custom exercises, password change,
-account deletion. They aren't needed for Phase 0.
+Deleting finished workouts, editing or deleting custom exercises, password change, account deletion.

@@ -28,9 +28,18 @@ Liv is an all-in-one **fitness and nutrition tracking platform** designed to hel
 ## What works today
 
 Registration and login, a three-step onboarding flow, a persisted profile with equipment selection,
-a seeded exercise library, body-weight and measurement logging, and the five-section app
-(Home, Workout, Nutrition, Progress, Profile). The database already contains the tables for workouts,
-sets, body metrics and nutrition targets, ready for later phases.
+body-weight and measurement logging, and the five-section app (Home, Workout, Nutrition, Progress, Profile).
+
+**Phase 1 adds the first complete fitness feature:**
+
+- A deterministic **workout-plan generator** (goal, experience, days, session length, location, equipment, split).
+- A **104-exercise library** with full metadata, and strict **equipment filtering**.
+- **Substitutions** that keep the target muscle and movement pattern.
+- A **custom workout creator** (add, remove, reorder, change sets/reps/rest, rename, save, reuse).
+- A fast **workout screen** that logs weight, reps, RPE, RIR and notes, with a **rest timer**.
+- **Workout history**.
+
+See [PHASE1.md](PHASE1.md) for architecture, rules, APIs and known limitations.
 
 ## Install
 
@@ -60,7 +69,10 @@ exercise library) are created automatically on first start.
 
 ```bash
 cd backend
-python -m pytest
+python -m pytest          # backend: API, engine, security, migration
+
+cd ../frontend
+node --test tests/*.test.mjs   # set validation and rest-timer logic (Node 20+, no install needed)
 ```
 
 ## Environment variables
@@ -92,9 +104,12 @@ backend/
     deps.py          current-user and DB dependencies
     models/          SQLAlchemy tables
     schemas/         request/response validation (Pydantic)
-    services/        business logic, no HTTP code
+    engine/          workout engine: pure Python, no database or HTTP (generator, splits, selector, ...)
+    services/        business logic and database access, no HTTP code
     routers/         thin HTTP layer
-    seed.py          reference data and starter exercises
+    seed.py          reference data; syncs the exercise library on startup
+    seed_data/       the built-in exercise library
+    migrate.py       adds new columns to an existing Phase 0 database
   tests/             pytest suite
 frontend/
   index.html
@@ -103,8 +118,10 @@ frontend/
     main.js          boot, route guards, navigation shell
     api.js           the only place that calls the network
     views/           one file per screen
-    ui/              reusable components
+    ui/              reusable components (rest timer, modals)
+    validation.js    set-entry validation (pure, unit tested)
+  tests/             Node unit tests
 ARCHITECTURE.md  DATABASE.md  API.md
 ```
 
-See [ARCHITECTURE.md](ARCHITECTURE.md), [DATABASE.md](DATABASE.md) and [API.md](API.md) for details.
+See [PHASE1.md](PHASE1.md), [ARCHITECTURE.md](ARCHITECTURE.md), [DATABASE.md](DATABASE.md) and [API.md](API.md) for details.
