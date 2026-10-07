@@ -2,6 +2,7 @@
 
 Every method is scoped to one user. Another user's records are reported as "not found".
 """
+import logging
 import math
 from datetime import datetime
 
@@ -13,9 +14,13 @@ from app.errors import AppError, ConflictError, NotFoundError
 from app.models import WorkoutExercise, WorkoutSession, WorkoutSet
 from app.models.base import utcnow
 from app.models.enums import WorkoutStatus
+from app.schemas.progression import RecommendationResponse
 from app.schemas.workout import SessionComplete, SessionStart, SetUpdate
-from app.services import plan_service
+from app.services import history_service, plan_service
+from app.services.progression_service import ProgressionService
 from app.services.workout_service import _SESSION_EAGER, get_session
+
+logger = logging.getLogger(__name__)
 
 MAX_SETS_PER_EXERCISE = 20
 DURATION_SLACK_MINUTES = 5  # a typed duration may exceed elapsed time by this much (clock drift, edits)
@@ -80,11 +85,21 @@ class WorkoutSessionService:
         )
         self.db.add(session)
         try:
+            self.db.flush()
+            self._attach_recommendations(session)
             self.db.commit()
         except IntegrityError:  # two starts raced; the unique index allowed only one
             self.db.rollback()
             raise ConflictError("You already have a workout in progress.", code="workout_in_progress")
         return get_session(self.db, self.user_id, session.id)
+
+    def _attach_recommendations(self, session: WorkoutSession) -> None:
+        """Phase 2: freeze a recommendation per exercise. Never allowed to stop a workout from starting."""
+        try:
+            for we, rec in ProgressionService(self.db, self.user_id).build_for_session(session):
+                we.recommendation = rec
+        except Exception:  # noqa: BLE001 - the workout matters more than the suggestion
+            logger.exception("Could not build progression recommendations for session %s", session.id)
 
     @staticmethod
     def _new_set(number: int, pe, previous: list[WorkoutSet]) -> WorkoutSet:
@@ -185,7 +200,27 @@ class WorkoutSessionService:
         session.duration_minutes = duration
         if data.notes is not None:
             session.notes = data.notes
+        try:
+            ProgressionService.finalize(session)
+        except Exception:  # noqa: BLE001
+            logger.exception("Could not finalize recommendations for session %s", session.id)
         self.db.commit()
+        self._update_records(session)
+        return get_session(self.db, self.user_id, session_id)
+
+    def _update_records(self, session: WorkoutSession) -> None:
+        """Phase 2: detect personal records from the finished workout. The workout is already saved either way."""
+        try:
+            history_service.recompute_records(self.db, self.user_id, [we.exercise_id for we in session.exercises])
+            self.db.commit()
+        except Exception:  # noqa: BLE001
+            self.db.rollback()
+            logger.exception("Could not update personal records for session %s", session.id)
+
+    def respond_to_recommendation(self, session_id: int, workout_exercise_id: int,
+                                  data: RecommendationResponse) -> WorkoutSession:
+        session = self._in_progress(session_id)
+        ProgressionService(self.db, self.user_id).respond(session, workout_exercise_id, data)
         return get_session(self.db, self.user_id, session_id)
 
     @staticmethod

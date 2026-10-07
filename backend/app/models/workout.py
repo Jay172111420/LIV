@@ -27,6 +27,7 @@ from app.models.enums import (
     db_enum,
 )
 from app.models.exercise import Exercise
+from app.models.progression import PersonalRecord, ProgressionRecommendation
 from app.models.reference import Equipment, FitnessGoal
 
 plan_equipment = Table(
@@ -165,6 +166,9 @@ class WorkoutSession(Base, TimestampMixin):
     exercises: Mapped[list["WorkoutExercise"]] = relationship(
         cascade="all, delete-orphan", order_by="WorkoutExercise.position"
     )
+    # Phase 2: personal records achieved in this workout.
+    records: Mapped[list["PersonalRecord"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True, order_by="PersonalRecord.id")
 
 
 class WorkoutExercise(Base):
@@ -181,6 +185,9 @@ class WorkoutExercise(Base):
     notes: Mapped[str | None] = mapped_column(Text)
 
     exercise: Mapped[Exercise] = relationship()
+    # Phase 2: the suggestion shown for this exercise when the workout started (null for older workouts).
+    recommendation: Mapped[ProgressionRecommendation | None] = relationship(
+        uselist=False, cascade="all, delete-orphan")
     sets: Mapped[list["WorkoutSet"]] = relationship(
         cascade="all, delete-orphan", order_by="WorkoutSet.set_number"
     )

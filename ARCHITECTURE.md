@@ -25,6 +25,26 @@ it is deterministic and testable without a database. `engine_adapter` is the sin
 engine objects. The frontend never contains generation logic: it sends inputs to `/workouts/generate` and renders
 the result.
 
+## Progression engine (Phase 2)
+
+`app/engine/` gains three pure-Python modules, with no database, HTTP or UI imports:
+
+- `metrics.py`: estimated 1RM, volume, working-set selection, performance score, trend and decline detection.
+- `progression.py`: `ProgressionEngine.recommend(ProgressionInput) -> Recommendation`.
+- `records.py`: `detect_records(history) -> [RecordEvent]`.
+
+`services/performance_data.py` is the only bridge between stored workouts and the engine.
+`services/progression_service.py` resolves settings and increments, calls the engine, stores and applies
+recommendations. `services/history_service.py` builds history, volume and flag reports and rebuilds PRs.
+
+Data flow: finish a workout -> sets are stored -> PRs are recomputed. Start the next workout of the same exercise ->
+the service loads the last sessions, the engine returns a recommendation, and it is frozen on that workout
+exercise. The user accepts, edits or ignores it; the choice is stored, and what they actually lifted is stored when
+they finish. The next recommendation is always based on what they actually lifted.
+
+Progression is deliberately non-critical: if building recommendations or records raises, the failure is logged and
+the workout still starts or finishes normally.
+
 ## Decisions
 
 **Kept the planned stack.** FastAPI, SQLite and vanilla HTML/CSS/JS were already chosen in the README, so
@@ -71,6 +91,9 @@ finished onboarding. The server is the real authority, since every API call re-c
 
 ## Extending
 
+- New progression rule: add a branch in `engine/progression.py` and a test in `tests/test_progression_engine.py`.
+  Thresholds live in `ProgressionConfig`; increments live in `DEFAULT_INCREMENTS_KG`.
+- New progression strategy: add it to `ProgressionStrategy` (engine and `models/enums.py`) and handle it in `recommend`.
 - New split: build `DayTemplate`s and call `SplitGenerator.register(SplitSpec(...))`. No generator changes.
 - New exercise: add an entry to `seed_data/exercise_library.py` (a test checks every entry's metadata).
 - New goal prescription: add a row to `GOAL_RULES` in `engine/prescription.py` and `STYLE_BONUS` in `engine/exercise_selector.py`.

@@ -23,7 +23,7 @@ Liv is an all-in-one **fitness and nutrition tracking platform** designed to hel
 
 ---
 
-🚧 **Liv is currently under development.** Phase 0 (foundation) is complete.
+🚧 **Liv is currently under development.** Phases 0, 1 and 2 are complete.
 
 ## What works today
 
@@ -40,6 +40,19 @@ body-weight and measurement logging, and the five-section app (Home, Workout, Nu
 - **Workout history**.
 
 See [PHASE1.md](PHASE1.md) for architecture, rules, APIs and known limitations.
+
+**Phase 2 adds a progressive-overload engine:**
+
+- A **next-session recommendation** for every exercise ("Recommended today: 82.5 kg, 8-10 reps, 3 sets"), built only
+  from your logged workouts, with a short reason and the last session shown beside it.
+- **Double, weight and rep progression**, with hold, reduce and deload rules, RIR/RPE nudges and break handling.
+- **Accept, edit or ignore** each suggestion. Your choice is stored.
+- Configurable **weight steps** per equipment type and per exercise.
+- **Exercise history**: best weight/reps, estimated 1RM (labelled as an estimate), volume, trend and recent sessions.
+- **Personal records** (weight, reps, volume), **volume by week / muscle / exercise / workout**, and a gentle
+  "below your normal trend" flag.
+
+See [PHASE2.md](PHASE2.md) for the rules, architecture, database and API changes, tests and limitations.
 
 ## Install
 
@@ -72,7 +85,7 @@ cd backend
 python -m pytest          # backend: API, engine, security, migration
 
 cd ../frontend
-node --test tests/*.test.mjs   # set validation and rest-timer logic (Node 20+, no install needed)
+node --test tests/*.test.mjs   # set validation, rest timer, progression formatting (Node 20+, no install needed)
 ```
 
 ## Environment variables
@@ -104,7 +117,8 @@ backend/
     deps.py          current-user and DB dependencies
     models/          SQLAlchemy tables
     schemas/         request/response validation (Pydantic)
-    engine/          workout engine: pure Python, no database or HTTP (generator, splits, selector, ...)
+    engine/          pure Python, no database or HTTP: workout generator (Phase 1), progression engine,
+                     metrics and PR detection (Phase 2)
     services/        business logic and database access, no HTTP code
     routers/         thin HTTP layer
     seed.py          reference data; syncs the exercise library on startup
@@ -120,8 +134,9 @@ frontend/
     views/           one file per screen
     ui/              reusable components (rest timer, modals)
     validation.js    set-entry validation (pure, unit tested)
+    progression.js   recommendation / PR / chart formatting (pure, unit tested)
   tests/             Node unit tests
 ARCHITECTURE.md  DATABASE.md  API.md
 ```
 
-See [PHASE1.md](PHASE1.md), [ARCHITECTURE.md](ARCHITECTURE.md), [DATABASE.md](DATABASE.md) and [API.md](API.md) for details.
+See [PHASE1.md](PHASE1.md), [PHASE2.md](PHASE2.md), [ARCHITECTURE.md](ARCHITECTURE.md), [DATABASE.md](DATABASE.md) and [API.md](API.md) for details.

@@ -256,3 +256,43 @@ dialog.modal.modal-wide { width: min(560px, calc(100vw - 32px)); }
   .set-labels, .set-main { grid-template-columns: 22px 1fr 1fr 36px 48px; gap: 6px; }
   .rest-clock { font-size: var(--text-xl); }
 }
+
+/* ---- Phase 2: progression ------------------------------------------------------------------ */
+.badge-ember { background: var(--ember-soft); color: var(--ember); }
+
+.rec-card { background: var(--pulse-soft); border: 1px solid rgb(45 78 245 / 0.25); border-radius: var(--r-card);
+  padding: var(--s-4); display: grid; gap: var(--s-3); }
+.rec-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+.rec-head h3 { font-size: var(--text-md); color: var(--pulse-strong); }
+.rec-numbers { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: var(--s-2); }
+.rec-num { background: var(--surface); border-radius: var(--r-control); padding: var(--s-3); display: grid; gap: 2px; }
+.rec-num strong { font-family: var(--font-display); font-size: var(--text-lg); }
+.rec-num small { color: var(--ink-3); }
+.rec-goal { font-weight: 600; color: var(--ink); }
+.rec-last { color: var(--ink-2); font-size: var(--text-sm); }
+.rec-reason { color: var(--ink-2); font-size: var(--text-sm); }
+.rec-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.rec-flag { font-size: var(--text-sm); color: var(--ink-2); border-left: 3px solid var(--line); padding-left: var(--s-3); }
+.rec-flag small { color: var(--ink-3); }
+.rec-flag-mild, .rec-flag-marked { border-left-color: var(--ember); }
+.rec-flag.notice { background: var(--ember-soft); border-radius: var(--r-control); padding: var(--s-3) var(--s-4); }
+
+.list-link { color: inherit; text-decoration: none; }
+.list-link:hover { background: rgb(14 26 51 / 0.03); }
+.row-end { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; justify-content: flex-end; }
+
+.chart { width: 100%; height: auto; max-height: 180px; display: block; }
+.chart-line { stroke: var(--pulse); }
+.chart-dot { fill: var(--surface); stroke: var(--pulse); stroke-width: 2; }
+.chart-dot-last { fill: var(--pulse); }
+.chart-bar { fill: var(--pulse); }
+.chart-bar-empty { fill: var(--line); }
+.chart-label { fill: var(--ink-3); font-size: 10px; }
+
+.pr-banner { background: var(--mint-soft); border: 1px solid rgb(14 138 106 / 0.3); border-radius: var(--r-card);
+  padding: var(--s-4); display: grid; gap: var(--s-2); }
+.pr-banner h2 { color: #0b5f4a; font-size: var(--text-lg); }
+.pr-row { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+
+.step-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--s-3); }
+.hint-block { display: grid; gap: var(--s-1); }

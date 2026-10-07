@@ -103,6 +103,39 @@ class RestrictionKind(str, Enum):
     restriction = "restriction"
 
 
+class ProgressionStrategy(str, Enum):
+    """Per-exercise override. `auto` lets the engine choose from the exercise and the history."""
+
+    auto = "auto"
+    double_progression = "double_progression"
+    weight_progression = "weight_progression"
+    rep_progression = "rep_progression"
+    hold = "hold"
+
+
+class RecommendationAction(str, Enum):
+    start = "start"
+    increase_weight = "increase_weight"
+    increase_reps = "increase_reps"
+    maintain = "maintain"
+    hold = "hold"
+    reduce_weight = "reduce_weight"
+    deload = "deload"
+
+
+class RecommendationChoice(str, Enum):
+    pending = "pending"
+    accepted = "accepted"
+    edited = "edited"
+    ignored = "ignored"
+
+
+class RecordType(str, Enum):
+    weight = "weight"
+    reps = "reps"
+    volume = "volume"
+
+
 def db_enum(enum_cls: type[Enum]) -> SAEnum:
     """Enum column that stores the .value strings and enforces them with a CHECK constraint."""
     return SAEnum(

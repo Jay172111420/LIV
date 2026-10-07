@@ -14,9 +14,10 @@ from app.errors import register_error_handlers
 from app.migrate import upgrade_schema
 from app.models import Base
 from app.routers import (
-    auth, body_metrics, exercises, nutrition, profile, reference, workout_sessions, workouts,
+    auth, body_metrics, exercises, nutrition, profile, progress, reference, workout_sessions, workouts,
 )
 from app.seed import seed_reference_data
+from app.services.history_service import backfill_records
 
 logging.basicConfig(level=logging.INFO)
 
@@ -35,12 +36,18 @@ async def lifespan(_: FastAPI):
     if get_settings().seed_on_startup:
         with SessionLocal() as db:
             seed_reference_data(db)
+    with SessionLocal() as db:  # Phase 2: build PR events for workouts logged before records existed
+        try:
+            backfill_records(db)
+        except Exception:  # noqa: BLE001 - never block startup on a derived table
+            db.rollback()
+            logging.getLogger(__name__).exception("Personal record backfill failed")
     yield
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="Liv API", version="0.2.0", lifespan=lifespan,
+    app = FastAPI(title="Liv API", version="0.3.0", lifespan=lifespan,
                   docs_url="/api/docs", openapi_url="/api/openapi.json", redoc_url=None)
     register_error_handlers(app)
 
@@ -70,7 +77,7 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     for module in (auth, profile, reference, exercises, workouts, workout_sessions,
-                   body_metrics, nutrition):
+                   body_metrics, nutrition, progress):
         app.include_router(module.router, prefix="/api")
 
     if settings.frontend_dir.exists():

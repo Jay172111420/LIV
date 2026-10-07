@@ -2,10 +2,19 @@ from fastapi import APIRouter, Query, status
 from sqlalchemy import select
 
 from app.deps import CurrentUser, DbSession
+from app.errors import AppError
 from app.models import MuscleGroup
 from app.schemas.exercise import ExerciseCreate, ExerciseOut, SubstituteOut
+from app.schemas.progression import (
+    ExerciseHistoryOut,
+    FlagOut,
+    ProgressionSettingsIn,
+    ProgressionSettingsOut,
+    RecommendationOut,
+)
 from app.schemas.reference import MuscleGroupOut
-from app.services import exercise_service
+from app.services import exercise_service, history_service
+from app.services.progression_service import ProgressionService
 
 router = APIRouter(prefix="/exercises", tags=["exercises"])
 
@@ -44,3 +53,41 @@ def exercise_substitutes(exercise_id: int, user: CurrentUser, db: DbSession,
 @router.get("/{exercise_id}", response_model=ExerciseOut)
 def get_exercise(exercise_id: int, user: CurrentUser, db: DbSession):
     return exercise_service.get_exercise(db, user.id, exercise_id)
+
+
+# ---- Phase 2: history, recommendation preview and per-exercise progression settings -------------
+@router.get("/{exercise_id}/history", response_model=ExerciseHistoryOut)
+def exercise_history(exercise_id: int, user: CurrentUser, db: DbSession, limit: int = Query(10, ge=1, le=50)):
+    return history_service.exercise_history(db, user.id, exercise_id, limit)
+
+
+@router.get("/{exercise_id}/recommendation", response_model=RecommendationOut)
+def exercise_recommendation(exercise_id: int, user: CurrentUser, db: DbSession,
+                            sets: int | None = Query(None, ge=1, le=20), rep_min: int | None = Query(None, ge=1, le=100),
+                            rep_max: int | None = Query(None, ge=1, le=100)):
+    """What Liv would suggest right now. A preview: nothing is stored.
+
+    Without sets/rep_min/rep_max it uses the target from your last workout with this exercise.
+    """
+    exercise = exercise_service.get_exercise(db, user.id, exercise_id)
+    if rep_min and rep_max and rep_max < rep_min:
+        raise AppError("The maximum reps can't be lower than the minimum.", code="invalid_rep_range")
+    service = ProgressionService(db, user.id)
+    if sets is None and rep_min is None and rep_max is None:  # no target given: use how the user last trained it
+        sets, rep_min, rep_max = service.last_prescription(exercise_id)
+    rec, last, _ = service.recommend(exercise, sets=sets, rep_min=rep_min, rep_max=rep_max)
+    return RecommendationOut(
+        exercise_id=exercise.id, strategy=rec.strategy.value, action=rec.action.value, weight_kg=rec.weight_kg,
+        rep_min=rec.rep_min, rep_max=rec.rep_max, reps_goal=rec.reps_goal, sets=rec.sets,
+        increment_kg=rec.increment_kg, reason=rec.reason, confidence=rec.confidence, last_session=last,
+        flags=[FlagOut(code=f.code, message=f.message, level=f.level, detail=f.detail) for f in rec.flags])
+
+
+@router.get("/{exercise_id}/progression-settings", response_model=ProgressionSettingsOut)
+def get_progression_settings(exercise_id: int, user: CurrentUser, db: DbSession):
+    return ProgressionService(db, user.id).get_settings(exercise_id)
+
+
+@router.put("/{exercise_id}/progression-settings", response_model=ProgressionSettingsOut)
+def put_progression_settings(exercise_id: int, data: ProgressionSettingsIn, user: CurrentUser, db: DbSession):
+    return ProgressionService(db, user.id).update_settings(exercise_id, data)

@@ -88,6 +88,32 @@ plan of `kind: "custom"` with exactly one day. All edit endpoints return the upd
 
 Finished workouts are read-only. All ids are scoped to the signed-in user; other users' ids return 404.
 
+### Progression and history (Phase 2)
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET | `/exercises/{id}/recommendation` | Preview of what to do next. Query: `sets`, `rep_min`, `rep_max` (default: how you last trained it). Reads stored data; saves nothing. 400 `invalid_rep_range` |
+| GET | `/exercises/{id}/history` | Bests, estimated 1RM (labelled as an estimate), volume, recent sessions (`limit` 1-50), PRs, trend, flags |
+| GET, PUT | `/exercises/{id}/progression-settings` | `{strategy?, increment_kg?}`. Strategy: `auto`, `double_progression`, `weight_progression`, `rep_progression`, `hold`. `null` resets to automatic / default |
+| POST | `/workout-sessions/{id}/exercises/{we_id}/recommendation` | Accept, edit or ignore: `{choice: "accepted"}`, `{choice: "edited", weight_kg?, reps?}` (at least one), `{choice: "ignored"}`. Applies to sets not yet completed; the choice is stored. 409 `workout_not_active` after finishing, 400 `no_recommendation` |
+| GET | `/progress/exercises` | Exercises with history, newest first; `flagged` marks a decline |
+| GET | `/progress/records` | PR events, newest first. Query: `exercise_id`, `limit` (1-100) |
+| GET | `/progress/volume` | `weeks` (1-52, default 8). Volume, sets and reps by week, muscle group, exercise and workout |
+| GET | `/progress/flags` | Exercises whose recent performance is below trend, plus an `overall` notice when it is broad |
+| GET | `/progress/increments` | Weight step per equipment type: default, custom and effective |
+| PUT | `/progress/increments/{category}` | `{increment_kg}` or `null` to reset. Categories: `barbell`, `dumbbells`, `kettlebell`, `machines`, `cable_machine` |
+
+Session responses now include `exercises[].recommendation` (frozen when the workout started; `null` for workouts
+started before Phase 2) and `records` (PRs earned in that workout). A recommendation looks like:
+
+```json
+{"action": "increase_weight", "strategy": "double_progression", "weight_kg": 82.5, "rep_min": 8, "rep_max": 10,
+ "reps_goal": 8, "sets": 3, "reason": "You reached the top of your target range (10 reps) on all 3 sets last session, so add weight and work back up from 8.",
+ "confidence": "medium", "flags": [], "last_session": {"performed_on": "2026-10-06", "sets": [{"weight_kg": 80, "reps": 10}]},
+ "user_choice": "pending"}
+```
+`action` is one of `start` (no history), `increase_weight`, `increase_reps`, `maintain`, `hold`, `reduce_weight`, `deload`.
+`weight_kg` is `null` for bodyweight exercises and when there is no history. Weights are always kilograms.
+
 ### Body metrics
 | Method | Path | Notes |
 | --- | --- | --- |

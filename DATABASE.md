@@ -53,6 +53,10 @@ erDiagram
 | `body_metrics` | One row per measurement: `metric_type` (weight, body_fat, waist, chest, arm, thigh, hip, neck, custom), `custom_label`, `value`, `unit`, `recorded_at`. Indexed by user, type and time |
 | `nutrition_profiles` | One per user: `calorie_target`, `protein_g`, `carbs_g`, `fat_g`, `dietary_preference` |
 | `nutrition_restrictions` | Allergies and restrictions as rows (`kind`, `label`) |
+| `progression_recommendations` | Phase 2. One per workout exercise, frozen at workout start: `strategy`, `action`, `weight_kg`, `rep_min`/`rep_max`, `reps_goal`, `sets`, `increment_kg`, `reason`, `confidence`, `flags` (JSON), `last_session` (JSON snapshot shown to the user). The user's response: `user_choice` (pending/accepted/edited/ignored), `chosen_weight_kg`, `chosen_reps`, `responded_at`. Filled when the workout ends: `performed_weight_kg`, `followed` |
+| `personal_records` | Phase 2. One PR event: `record_type` (weight, reps, volume), `value`, `weight_kg`, `reps`, `previous_value`, `achieved_on`, `session_id`. Unique per (session, exercise, type). Rebuilt from logged sets |
+| `exercise_progression_settings` | Phase 2. Per user and exercise: optional `strategy` and `increment_kg`. A missing row means automatic |
+| `user_increment_preferences` | Phase 2. Per user and equipment category: `increment_kg` |
 
 ## Design notes
 
@@ -64,6 +68,18 @@ erDiagram
   columns. Adopt Alembic before any rename, drop or type change.
 - The built-in exercise library in `app/seed_data/exercise_library.py` is the source of truth: startup adds new
   entries and re-syncs the metadata of existing built-ins. Custom (user-owned) exercises are never touched.
+
+## Phase 2 notes
+
+- Phase 2 only adds tables. No existing table or column changed, so `create_all` upgrades a Phase 1 database on
+  startup and nothing needs migrating.
+- On the first start after upgrading, `backfill_records` builds `personal_records` from workouts already logged.
+  It does nothing once the table has rows.
+- Personal records are derived data. `history_service.recompute_records` replays an exercise's history in date
+  order and rewrites its rows, so backdated workouts and corrections stay consistent.
+- Recommendations are stored, not recomputed on read, so the suggestion and its explanation cannot change while
+  a workout is open, and "what was suggested vs what was lifted" survives for later analysis.
+- Estimated 1RM and volume are computed on read from sets and are never stored.
 
 ## Reset local data
 

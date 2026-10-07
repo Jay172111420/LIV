@@ -2,6 +2,7 @@ from fastapi import APIRouter, Query, Response, status
 
 from app.deps import CurrentUser, DbSession
 from app.models.enums import WorkoutStatus
+from app.schemas.progression import RecommendationResponse
 from app.schemas.workout import SessionComplete, SessionCreate, SessionOut, SessionStart, SetUpdate
 from app.services import workout_service
 from app.services.workout_session_service import WorkoutSessionService
@@ -51,6 +52,13 @@ def add_set(session_id: int, workout_exercise_id: int, user: CurrentUser, db: Db
 @router.delete("/{session_id}/exercises/{workout_exercise_id}/sets/{set_id}", response_model=SessionOut)
 def delete_set(session_id: int, workout_exercise_id: int, set_id: int, user: CurrentUser, db: DbSession):
     return WorkoutSessionService(db, user.id).delete_set(session_id, workout_exercise_id, set_id)
+
+
+@router.post("/{session_id}/exercises/{workout_exercise_id}/recommendation", response_model=SessionOut)
+def respond_to_recommendation(session_id: int, workout_exercise_id: int, data: RecommendationResponse,
+                              user: CurrentUser, db: DbSession):
+    """Accept, edit or ignore the suggestion for an exercise. The choice is recorded."""
+    return WorkoutSessionService(db, user.id).respond_to_recommendation(session_id, workout_exercise_id, data)
 
 
 @router.post("/{session_id}/complete", response_model=SessionOut)

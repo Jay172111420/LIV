@@ -9,6 +9,7 @@ import { renderHome } from './views/home.js';
 import { renderNutrition } from './views/nutrition.js';
 import { renderOnboarding } from './views/onboarding.js';
 import { renderProfile } from './views/profile.js';
+import { renderExerciseHistory } from './views/exerciseHistory.js';
 import { renderProgress } from './views/progress.js';
 import { renderWorkout } from './views/workout.js';
 import { renderGenerator } from './views/generator.js';
@@ -38,6 +39,7 @@ const VIEWS = {
   '/workout/history/:id': renderSessionDetail,
   '/nutrition': renderNutrition,
   '/progress': renderProgress,
+  '/progress/exercise/:id': renderExerciseHistory,
   '/profile': (el) => renderProfile(el, { onLoggedOut: () => { shell = null; navigate('/login'); } }),
 };
 

@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.enums import WorkoutStatus
 from app.schemas.exercise import ExerciseOut
+from app.schemas.progression import RecommendationOut, RecordOut
 
 
 def _half_steps(v: float | None) -> float | None:
@@ -106,6 +107,7 @@ class SessionExerciseOut(BaseModel):
     rest_seconds: int | None = None
     exercise: ExerciseOut
     sets: list[SetOut] = []
+    recommendation: RecommendationOut | None = None
 
 
 class SessionOut(BaseModel):
@@ -122,4 +124,5 @@ class SessionOut(BaseModel):
     status: WorkoutStatus
     notes: str | None = None
     exercises: list[SessionExerciseOut] = []
+    records: list[RecordOut] = []
     created_at: datetime

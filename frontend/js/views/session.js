@@ -7,6 +7,7 @@ import { state } from '../store.js';
 import { formatReps, formatRest, weightToDisplay, weightUnit } from '../units.js';
 import { validateSet } from '../validation.js';
 import { Alert, Button, ErrorState, Loading, confirmModal } from '../ui/components.js';
+import { RecommendationCard } from '../ui/recommendation.js';
 import { RestBar, RestTimer } from '../ui/restTimer.js';
 
 const DEFAULT_REST = 90;
@@ -87,6 +88,10 @@ export function renderSession(root, { id }) {
         h('div', {}, h('h2', {}, ex.name),
           h('small', {}, `${ex.primary_muscle_group.name} · target ${target} · rest ${formatRest(we.rest_seconds ?? DEFAULT_REST)}`)),
         ex.instructions && h('details', { class: 'how' }, h('summary', {}, 'How'), h('p', {}, ex.instructions))),
+      we.recommendation && RecommendationCard({
+        rec: we.recommendation, units, timed: ex.is_timed,
+        onRespond: async (body) => { adopt(await api.respondToRecommendation(session.id, we.id, body)); redrawCard(weOf(we.id)); updateProgress(); },
+      }),
       h('div', { class: 'set-table' },
         h('div', { class: 'set-labels', 'aria-hidden': 'true' }, h('span', {}, 'Set'), h('span', {}, unit), h('span', {}, ex.is_timed ? 'Sec' : 'Reps'), h('span'), h('span')),
         we.sets.map((set, i) => setRow(we, set, i + 1))),

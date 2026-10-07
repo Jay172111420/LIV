@@ -1,10 +1,11 @@
+import logging
 from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.errors import AppError, NotFoundError
-from app.models import Exercise, WorkoutExercise, WorkoutSession, WorkoutSet
+from app.models import Exercise, PersonalRecord, WorkoutExercise, WorkoutSession, WorkoutSet
 from app.models.enums import WorkoutStatus
 from app.schemas.workout import SessionCreate
 from app.services.exercise_service import _visible_to
@@ -20,6 +21,8 @@ _SESSION_EAGER = (
     .selectinload(Exercise.secondary_muscle_groups),
     selectinload(WorkoutSession.exercises).selectinload(WorkoutExercise.exercise)
     .selectinload(Exercise.equipment),
+    selectinload(WorkoutSession.exercises).selectinload(WorkoutExercise.recommendation),
+    selectinload(WorkoutSession.records).selectinload(PersonalRecord.exercise),
 )
 
 
@@ -57,6 +60,14 @@ def create_session(db: Session, user_id: int, data: SessionCreate) -> WorkoutSes
     )
     db.add(session)
     db.commit()
+    if session.status == WorkoutStatus.completed:  # logged after the fact: it counts towards records too
+        try:
+            from app.services import history_service  # local import: history_service reads this module's data
+            history_service.recompute_records(db, user_id, wanted)
+            db.commit()
+        except Exception:  # noqa: BLE001 - the workout is saved; records can be rebuilt later
+            db.rollback()
+            logging.getLogger(__name__).exception("Could not update personal records")
     return get_session(db, user_id, session.id)
 
 
